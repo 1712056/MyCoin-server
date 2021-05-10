@@ -4,6 +4,7 @@ import cors from "cors";
 import morgan from "morgan";
 import Auth from './routes/auth.route.js';
 import User from './routes/user.route.js';
+import Blockchain from './blockchain.js';
 
 const app = express();
 app.use(cors());
