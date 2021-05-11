@@ -2,7 +2,8 @@
 import sha256 from 'sha256';
 import Transaction from './transaction.js';
 import broadcastLatest from './p2p.js'
-
+import hexToBinary from './utils/hexToBinary.js';
+import CryptoJS from 'crypto-js';
 
 /*function constructor for my Blockchain.*/
 class Blockchain {
@@ -109,10 +110,25 @@ const hasValidHash = (block) => {
     return true;
 };
 
+const findBlock = (index, previousHash, timestamp, data, difficulty) => {
+    let nonce = 0;
+    while (true) {
+        const hash = calculateHash(index, previousHash, timestamp, data, difficulty, nonce);
+        if (hashMatchesDifficulty(hash, difficulty)) {
+            return new Block(index, hash, previousHash, timestamp, data, difficulty, nonce);
+        }
+        nonce++;
+    }
+};
+
+
 const hashMatchesBlockContent = (block) => {
     const blockHash = calculateHashForBlock(block);
     return blockHash === block.hash;
 };
+const calculateHash = (index, previousHash, timestamp, data,
+    difficulty, nonce) =>
+CryptoJS.SHA256(index + previousHash + timestamp + data + difficulty + nonce).toString();
 
 const hashMatchesDifficulty = (hash, difficulty) => {
     const hashInBinary = hexToBinary(hash);
@@ -167,4 +183,4 @@ const hashMatchesDifficulty = (hash, difficulty) => {
             console.log('Received blockchain invalid');
         }
     };
-export default Blockchain;
+export {Blockchain, getBlockchain, generateNextBlock} ;
