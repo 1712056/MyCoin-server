@@ -1,159 +1,170 @@
-import { v4 as uuidv4 } from 'uuid';
-import sha256 from 'sha256';
 
-const currentNodeUrl = process.argv[3];
+import sha256 from 'sha256';
+import Transaction from './transaction.js';
+import broadcastLatest from './p2p.js'
+
 
 /*function constructor for my Blockchain.*/
 class Blockchain {
-    constructor(socketID) {
-        this.socketId = socketID;
-        this.chain = [];
-        this.pendingTransactions = [];
-        this.currentNodeUrl = currentNodeUrl;
-        this.networkNodes = [];
-        this.createNewBlock(100, '0', '0'); //Genesis block.
-    }
-    /*init a new block to the chain and insert pending transactions into the block.*/
-    createNewBlock(nonce, previousBlockHash, hash) {
-        const newBlock = {
-            index: this.chain.length + 1,
-            timestamp: Date.now(),
-            date: new Date().toString(),
-            transactions: this.pendingTransactions,
-            nonce: nonce,
-            hash: hash,
-            previousBlockHash: previousBlockHash
-        };
-        this.pendingTransactions = []; //reset the pendingTransactions for the next block.
-        this.chain.push(newBlock); //push to the blockchain the new block.
-        return newBlock;
-    }
-    /*returns the last block of the chain.*/
-    getLastBlock() {
-        return this.chain[this.chain.length - 1];
-    }
-    /*init a transaction into pendingTransactions.*/
-    createNewTransaction(amount, sender, recipient) {
-        const newTransaction = {
-            transactionId: uuid().split('-').join(''),
-            amount: amount,
-            date: new Date().getDay().toString() + "." + new Date().getMonth().toString() + "." + new Date().getFullYear().toString(),
-            sender: sender,
-            recipient: recipient
-        };
-
-        return newTransaction;
-    }
-    addTransactionToPendingTransactions(transactionObject) {
-        this.pendingTransactions.push(transactionObject); //push to the pendingTransactions array a new transaction
-        return this.getLastBlock()['index'] + 1;
-    }
-    /*hash block method.*/
-    hashBlock(previousBlockHash, currentBlockData, nonce) {
-        const dataAsString = previousBlockHash + nonce.toString() + JSON.stringify(currentBlockData); //merge parameters into a single string.
-        const hash = sha256(dataAsString);
-        return hash;
-    }
-    /*Proof Of Work method.*/
-    proofOfWork(previousBlockHash, currentBlockData) {
-        let nonce = 0;
-        let hash = this.hashBlock(previousBlockHash, currentBlockData, nonce);
-        while (hash.substring(0, 4) !== '0000') { //generate a new hash until the first 4 chars of the hash will be equals to '0000'. 
-            nonce++;
-            hash = this.hashBlock(previousBlockHash, currentBlockData, nonce);
-        }
-        return nonce;
-    }
-    chainIsValid(blockchain) {
-
-        let validChain = true;
-
-        for (var i = 1; i < blockchain.length; i++) {
-            const currentBlock = blockchain[i];
-            const prevBlock = blockchain[i - 1];
-            const blockHash = this.hashBlock(prevBlock['hash'], { transactions: currentBlock['transactions'], index: currentBlock['index'] }, currentBlock['nonce']);
-            if (blockHash.substring(0, 4) !== '0000')
-                validChain = false;
-            if (currentBlock['previousBlockHash'] !== prevBlock['hash'])
-                validChain = false;
-        };
-
-        //check genesis block validation 
-        const genesisBlock = blockchain[0];
-        const correctNonce = genesisBlock['nonce'] === 100;
-        const correctPreviousBlockHash = genesisBlock['previousBlockHash'] === '0';
-        const correctHash = genesisBlock['hash'] === '0';
-        const correctTransactions = genesisBlock['transactions'].length === 0;
-
-        if (!correctNonce || !correctPreviousBlockHash || !correctHash || !correctTransactions)
-            validChain = false;
-
-        return validChain;
-    }
-    getBlock(blockHash) {
-        let correctBlock = null;
-        this.chain.forEach(block => {
-            if (block.hash === blockHash)
-                correctBlock = block;
-        });
-        return correctBlock;
-    }
-    getTransaction(transactionId) {
-        let correctTransaction = null;
-        let correctBlock = null;
-
-        this.chain.forEach(block => {
-            block.transactions.forEach(transaction => {
-                if (transaction.transactionId === transactionId) {
-                    correctTransaction = transaction;
-                    correctBlock = block;
-                };
-            });
-        });
-
-        return {
-            transaction: correctTransaction,
-            block: correctBlock
-        };
-    }
-    getPendingTransactions() {
-        return this.pendingTransactions;
-    }
-    getAddressData(address) {
-        const addressTransactions = [];
-        this.chain.forEach(block => {
-            block.transactions.forEach(transaction => {
-                if (transaction.sender === address || transaction.recipient === address) {
-                    addressTransactions.push(transaction); //push all tranasction by sender or recipient into array.
-                };
-            });
-        });
-
-        if (addressTransactions == null) {
-            return false;
-        }
-
-        var amountArr = [];
-
-        let balance = 0;
-        addressTransactions.forEach(transaction => {
-            if (transaction.recipient === address) {
-                balance += transaction.amount;
-                amountArr.push(balance);
-            }
-            else if (transaction.sender === address) {
-                balance -= transaction.amount;
-                amountArr.push(balance);
-            }
-
-        });
-
-        return {
-            addressTransactions: addressTransactions,
-            addressBalance: balance,
-            amountArr: amountArr
-        };
-    }
+    constructor(index, hash, previousHash,
+        timestamp, data, difficulty, nonce) {
+    this.index = index;
+    this.previousHash = previousHash;
+    this.timestamp = timestamp;
+    this.data = data;
+    this.hash = hash;
+    this.difficulty = difficulty;
+    this.nonce = nonce;
 }
 
+    
+}
+
+const genesisTransaction = {
+    'txIns': [{'signature': '', 'txOutId': '', 'txOutIndex': 0}],
+    'txOuts': [{
+        'address': '04bfcab8722991ae774db48f934ca79cfb7dd991229153b9f732ba5334aafcd8e7266e47076996b55a14bf9913ee3145ce0cfc1372ada8ada74bd287450313534a',
+        'amount': 50
+    }],
+    'id': 'e655f6a5f26dc9b4cac6e46f52336428287759cf81ef5ff10854f69d68f43fa3'
+};
+//genesis Block
+const genesisBlock = new Blockchain(
+    0, '91a73664bc84c0baa1fc75ea6e4aa6d1d20c5df664c724e3159aefc2e1186627', '', 1620705526, [genesisTransaction], 0, 0
+);
+let blockchain = [genesisBlock];
+
+const getBlockchain = () => blockchain;
+const getLatestBlock = () => blockchain[blockchain.length - 1];
+// in seconds
+const BLOCK_GENERATION_INTERVAL = 10;
+
+// in blocks
+const DIFFICULTY_ADJUSTMENT_INTERVAL = 10;
+const getDifficulty = (aBlockchain)=> {
+    const latestBlock = aBlockchain[blockchain.length - 1];
+    if (latestBlock.index % DIFFICULTY_ADJUSTMENT_INTERVAL === 0 && latestBlock.index !== 0) {
+        return getAdjustedDifficulty(latestBlock, aBlockchain);
+    } else {
+        return latestBlock.difficulty;
+    }
+};
+
+const getAdjustedDifficulty = (latestBlock, aBlockchain) => {
+    const prevAdjustmentBlock= aBlockchain[blockchain.length - DIFFICULTY_ADJUSTMENT_INTERVAL];
+    const timeExpected = BLOCK_GENERATION_INTERVAL * DIFFICULTY_ADJUSTMENT_INTERVAL;
+    const timeTaken = latestBlock.timestamp - prevAdjustmentBlock.timestamp;
+    if (timeTaken < timeExpected / 2) {
+        return prevAdjustmentBlock.difficulty + 1;
+    } else if (timeTaken > timeExpected * 2) {
+        return prevAdjustmentBlock.difficulty - 1;
+    } else {
+        return prevAdjustmentBlock.difficulty;
+    }
+};
+const getCurrentTimestamp = () => Math.round(new Date().getTime() / 1000);
+
+const isValidBlockStructure = (block) => {
+    return typeof block.index === 'number'
+        && typeof block.hash === 'string'
+        && typeof block.previousHash === 'string'
+        && typeof block.timestamp === 'number'
+        && typeof block.data === 'object';
+};
+
+const isValidNewBlock = (newBlock, previousBlock) => {
+    if (!isValidBlockStructure(newBlock)) {
+        console.log('invalid block structure: %s', JSON.stringify(newBlock));
+        return false;
+    }
+    if (previousBlock.index + 1 !== newBlock.index) {
+        console.log('invalid index');
+        return false;
+    } else if (previousBlock.hash !== newBlock.previousHash) {
+        console.log('invalid previoushash');
+        return false;
+    } else if (!isValidTimestamp(newBlock, previousBlock)) {
+        console.log('invalid timestamp');
+        return false;
+    } else if (!hasValidHash(newBlock)) {
+        return false;
+    }
+    return true;
+};
+
+const isValidTimestamp = (newBlock, previousBlock) => {
+    return ( previousBlock.timestamp - 60 < newBlock.timestamp )
+        && newBlock.timestamp - 60 < getCurrentTimestamp();
+};
+const hasValidHash = (block) => {
+
+    if (!hashMatchesBlockContent(block)) {
+        console.log('invalid hash, got:' + block.hash);
+        return false;
+    }
+
+    if (!hashMatchesDifficulty(block.hash, block.difficulty)) {
+        console.log('block difficulty not satisfied. Expected: ' + block.difficulty + 'got: ' + block.hash);
+    }
+    return true;
+};
+
+const hashMatchesBlockContent = (block) => {
+    const blockHash = calculateHashForBlock(block);
+    return blockHash === block.hash;
+};
+
+const hashMatchesDifficulty = (hash, difficulty) => {
+    const hashInBinary = hexToBinary(hash);
+    const requiredPrefix = '0'.repeat(difficulty);
+    return hashInBinary.startsWith(requiredPrefix);
+};
+
+/*
+    Checks if the given blockchain is valid. Return the unspent txOuts if the chain is valid
+ */
+    const isValidChain = (blockchainToValidate) => {
+        console.log('isValidChain:');
+        console.log(JSON.stringify(blockchainToValidate));
+        const isValidGenesis = (block) => {
+            return JSON.stringify(block) === JSON.stringify(genesisBlock);
+        };
+    
+        if (!isValidGenesis(blockchainToValidate[0])) {
+            return null;
+        }
+        /*
+        Validate each block in the chain. The block is valid if the block structure is valid
+          and the transaction are valid
+         */
+        let aUnspentTxOuts = [];
+    
+        for (let i = 0; i < blockchainToValidate.length; i++) {
+            const currentBlock = blockchainToValidate[i];
+            if (i !== 0 && !isValidNewBlock(blockchainToValidate[i], blockchainToValidate[i - 1])) {
+                return null;
+            }
+    
+            aUnspentTxOuts = processTransactions(currentBlock.data, aUnspentTxOuts, currentBlock.index);
+            if (aUnspentTxOuts === null) {
+                console.log('invalid transactions in blockchain');
+                return null;
+            }
+        }
+        return aUnspentTxOuts;
+    };
+    const replaceChain = (newBlocks) => {
+        const aUnspentTxOuts = isValidChain(newBlocks);
+        const validChain = aUnspentTxOuts !== null;
+        if (validChain &&
+            getAccumulatedDifficulty(newBlocks) > getAccumulatedDifficulty(getBlockchain())) {
+            console.log('Received blockchain is valid. Replacing current blockchain with received blockchain');
+            blockchain = newBlocks;
+            setUnspentTxOuts(aUnspentTxOuts);
+            updateTransactionPool(unspentTxOuts);
+            broadcastLatest();
+        } else {
+            console.log('Received blockchain invalid');
+        }
+    };
 export default Blockchain;
