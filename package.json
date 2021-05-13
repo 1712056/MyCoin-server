@@ -2,10 +2,10 @@
   "name": "mycoin-server",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "main.js",
   "type": "module",
   "scripts": {
-    "start": "nodemon index.js"
+    "start": "nodemon main.js"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +17,7 @@
     "elliptic": "^6.5.4",
     "express": "^4.17.1",
     "express-async-errors": "^3.1.1",
+    "lodash": "^4.17.21",
     "moongoose": "0.0.5",
     "morgan": "^1.10.0",
     "nodemon": "^2.0.7",

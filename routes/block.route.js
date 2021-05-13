@@ -4,7 +4,7 @@ import {getBlockchain, generateNextBlock} from './../blockchain.js';
 
 const router = express.Router();
 
-router.get('/',()=>{
+router.get('/',(req,res)=>{
     res.send(getBlockchain());
 });
 router.get('/:hash', (req, res) => {

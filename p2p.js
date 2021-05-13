@@ -1,4 +1,4 @@
-import * as WebSocket from 'ws';
+import WebSocket from 'ws';
 
 import {addBlockToChain, Blockchain, getBlockchain, getLatestBlock, isValidBlockStructure, replaceChain} from './blockchain.js';
 
