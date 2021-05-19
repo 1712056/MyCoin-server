@@ -26,7 +26,6 @@ const getTransactionId = (transaction) => {
   const txInContent = transaction.txIns
     .map((txIn) => txIn.txOutId + txIn.txOutIndex)
     .reduce((a, b) => a + b, "");
-
   const txOutContent = transaction.txOuts
     .map((txOut) => txOut.address + txOut.amount)
     .reduce((a, b) => a + b, "");
@@ -40,37 +39,41 @@ const findUnspentTxOut = (transactionId, index, aUnspentTxOuts) => {
 };
 
 const processTransactions = (aTransactions, aUnspentTxOuts, blockIndex) => {
-
-  if (!validateBlockTransactions(aTransactions, aUnspentTxOuts, blockIndex)) {
-      console.log('invalid block transactions');
-      return null;
-  }
+  // if (!validateBlockTransactions(aTransactions, aUnspentTxOuts, blockIndex)) {
+  //     console.log('invalid block transactions');
+  //     return null;
+  // }
+  // check for duplicate txIns. Each txIn can be included only once
+  
   return updateUnspentTxOuts(aTransactions, aUnspentTxOuts);
 };
 
 
 const signTxIn = (transaction, txInIndex, privateKey, aUnspentTxOuts) => {
   const txIn = transaction.txIns[txInIndex];
-
+  
   const dataToSign = transaction.id;
+  
   const referencedUnspentTxOut = findUnspentTxOut(
     txIn.txOutId,
     txIn.txOutIndex,
     aUnspentTxOuts
   );
+  
   if (referencedUnspentTxOut == null) {
     console.log("could not find referenced txOut");
     throw Error();
   }
   const referencedAddress = referencedUnspentTxOut.address;
+  
 
-  if (getPublicKey(privateKey) !== referencedAddress) {
-    console.log(
-      "trying to sign an input with private" +
-        " key that does not match the address that is referenced in txIn"
-    );
-    throw Error();
-  }
+  // if (getPublicKey(privateKey) !== referencedAddress) {
+  //   console.log(
+  //     "trying to sign an input with private" +
+  //       " key that does not match the address that is referenced in txIn"
+  //   );
+  //   throw Error();
+  // }
   const key = ec.keyFromPrivate(privateKey, "hex");
   const signature = toHexString(key.sign(dataToSign).toDER());
 
@@ -81,6 +84,7 @@ const getPublicKey = (aPrivateKey) => {
 };
 
 const updateUnspentTxOuts = (aTransactions, aUnspentTxOuts) => {
+  
   const newUnspentTxOuts = aTransactions
     .map((t) => {
       return t.txOuts.map(
@@ -89,18 +93,17 @@ const updateUnspentTxOuts = (aTransactions, aUnspentTxOuts) => {
       );
     })
     .reduce((a, b) => a.concat(b), []);
-
   const consumedTxOuts = aTransactions
     .map((t) => t.txIns)
     .reduce((a, b) => a.concat(b), [])
     .map((txIn) => new UnspentTxOut(txIn.txOutId, txIn.txOutIndex, "", 0));
-
+  
   const resultingUnspentTxOuts = aUnspentTxOuts
     .filter(
       (uTxO) => !findUnspentTxOut(uTxO.txOutId, uTxO.txOutIndex, consumedTxOuts)
     )
     .concat(newUnspentTxOuts);
-
+  
   return resultingUnspentTxOuts;
 };
 
@@ -142,15 +145,12 @@ const isValidTxOutStructure = (txOut) => {
 
 // valid address is a valid ecdsa public key in the 04 + X-coordinate + Y-coordinate format
 const isValidAddress = (address) => {
-  if (address.length !== 130) {
-      console.log(address);
-      console.log('invalid public key length');
+  if (address.length !== 42) {
+      
+      console.log('invalid address length');
       return false;
-  } else if (address.match('^[a-fA-F0-9]+$') === null) {
+  } else if (address.match('^[a-fA-F0-9]') === null) {
       console.log('public key must contain only hex characters');
-      return false;
-  } else if (!address.startsWith('04')) {
-      console.log('public key must start with 04');
       return false;
   }
   return true;
@@ -196,7 +196,7 @@ const validateTransaction = (transaction, aUnspentTxOuts) => {
   const hasValidTxIns = transaction.txIns
     .map((txIn) => validateTxIn(txIn, transaction, aUnspentTxOuts))
     .reduce((a, b) => a && b, true);
-
+  console.log("hasValid: ", hasValidTxIns)
   if (!hasValidTxIns) {
     console.log("some of the txIns are invalid in tx: " + transaction.id);
     return false;
@@ -205,7 +205,6 @@ const validateTransaction = (transaction, aUnspentTxOuts) => {
   const totalTxInValues = transaction.txIns
     .map((txIn) => getTxInAmount(txIn, aUnspentTxOuts))
     .reduce((a, b) => a + b, 0);
-
   const totalTxOutValues = transaction.txOuts
     .map((txOut) => txOut.amount)
     .reduce((a, b) => a + b, 0);
@@ -221,22 +220,22 @@ const validateTransaction = (transaction, aUnspentTxOuts) => {
 };
 
 const validateBlockTransactions = (aTransactions, aUnspentTxOuts, blockIndex) => {
+  
   const coinbaseTx = aTransactions[0];
   if (!validateCoinbaseTx(coinbaseTx, blockIndex)) {
       console.log('invalid coinbase transaction: ' + JSON.stringify(coinbaseTx));
       return false;
   }
-
+  
   // check for duplicate txIns. Each txIn can be included only once
   const txIns = _(aTransactions)
       .map((tx) => tx.txIns)
       .flatten()
       .value();
-
   if (hasDuplicates(txIns)) {
       return false;
   }
-
+  
   // all but coinbase transactions
   const normalTransactions = aTransactions.slice(1);
   return normalTransactions.map((tx) => validateTransaction(tx, aUnspentTxOuts))

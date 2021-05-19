@@ -83,11 +83,14 @@ const initHttpServer = (myHttpPort) => {
   });
 
   app.post("/mineTransaction", (req, res) => {
-    const address = req.body.address;
+    const receiveAddress = req.body.receiveAddress;
+    const senderAddress = req.body.senderAddress;
+    const privateKey = req.body.privateKey;
     const amount = req.body.amount;
     try {
-      const resp = generatenextBlockWithTransaction(address, amount);
+      const resp = generatenextBlockWithTransaction(receiveAddress, amount, senderAddress, privateKey);
       res.send(resp);
+       
     } catch (e) {
       console.log(e.message);
       res.status(400).send(e.message);

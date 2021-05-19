@@ -25,13 +25,17 @@ const genesisTransaction = {
   txIns: [{ signature: "", txOutId: "", txOutIndex: 0 }],
   txOuts: [
     {
-      address:
-        "04bfcab8722991ae774db48f934ca79cfb7dd991229153b9f732ba5334aafcd8e7266e47076996b55a14bf9913ee3145ce0cfc1372ada8ada74bd287450313534a",
+      address:"0xB249804d3f387617A6E21a1B2Db3e769B2f8EBD8",
       amount: 50,
     },
+    
   ],
-  id: "e655f6a5f26dc9b4cac6e46f52336428287759cf81ef5ff10854f69d68f43fa3",
+  id: "78b841799357f321425cb2eb276bff480268e60a4f8c09bb691926447c7b4fb5",
 };
+const setGenesisTransactions = ({address,amount})=>{
+  genesisTransaction.txOuts.push({address,amount});
+  
+}
 //genesis Block
 const genesisBlock = new Blockchain(
   0,
@@ -99,7 +103,7 @@ const generateRawNextBlock = (blockData) => {
   }
 };
 
-const generatenextBlockWithTransaction = (receiverAddress, amount) => {
+const generatenextBlockWithTransaction = (receiverAddress, amount, senderAddress, privateKey) => {
   if (!isValidAddress(receiverAddress)) {
     throw Error("invalid address");
   }
@@ -107,15 +111,16 @@ const generatenextBlockWithTransaction = (receiverAddress, amount) => {
     throw Error("invalid amount");
   }
   const coinbaseTx = getCoinbaseTransaction(
-    getPublicFromWallet(),
+    senderAddress,
     getLatestBlock().index + 1
   );
   const tx = createTransaction(
     receiverAddress,
     amount,
-    getPrivateFromWallet(),
+    privateKey,
     getUnspentTxOuts(),
-    getTransactionPool()
+    senderAddress,
+     
   );
   const blockData = [coinbaseTx, tx];
   return generateRawNextBlock(blockData);
@@ -219,7 +224,7 @@ const findBlock = (index, previousHash, timestamp, data, difficulty) => {
       nonce
     );
     if (hashMatchesDifficulty(hash, difficulty)) {
-      return new Block(
+      return new Blockchain(
         index,
         hash,
         previousHash,
@@ -272,8 +277,6 @@ const hashMatchesDifficulty = (hash, difficulty) => {
     Checks if the given blockchain is valid. Return the unspent txOuts if the chain is valid
  */
 const isValidChain = (blockchainToValidate) => {
-  console.log("isValidChain:");
-  console.log(JSON.stringify(blockchainToValidate));
   const isValidGenesis = (block) => {
     return JSON.stringify(block) === JSON.stringify(genesisBlock);
   };
@@ -308,6 +311,11 @@ const isValidChain = (blockchainToValidate) => {
   }
   return aUnspentTxOuts;
 };
+// and txPool should be only updated at the same time
+const setUnspentTxOuts = (newUnspentTxOut) => {
+  //console.log('replacing unspentTxouts with: ', newUnspentTxOut);
+  unspentTxOuts = newUnspentTxOut;
+};
 const addBlockToChain = (newBlock) => {
   if (isValidNewBlock(newBlock, getLatestBlock())) {
     const retVal = processTransactions(
@@ -321,7 +329,7 @@ const addBlockToChain = (newBlock) => {
     } else {
       blockchain.push(newBlock);
       setUnspentTxOuts(retVal);
-      updateTransactionPool(unspentTxOuts);
+      //updateTransactionPool(unspentTxOuts);
       return true;
     }
   }
@@ -357,7 +365,7 @@ const replaceChain = (newBlocks) => {
     );
     blockchain = newBlocks;
     setUnspentTxOuts(aUnspentTxOuts);
-    updateTransactionPool(unspentTxOuts);
+    //updateTransactionPool(unspentTxOuts);
     broadcastLatest();
   } else {
     console.log("Received blockchain invalid");
@@ -378,4 +386,5 @@ export {
   isValidBlockStructure,
   replaceChain,
   addBlockToChain,
+  setGenesisTransactions
 };

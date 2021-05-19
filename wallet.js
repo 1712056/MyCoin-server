@@ -41,10 +41,23 @@ const deleteWallet = () => {
 };
 
 const getBalance = (address, unspentTxOuts) => {
-  return _(unspentTxOuts)
-    .filter((uTxO) => uTxO.address === address)
-    .map((uTxO) => uTxO.amount)
-    .sum();
+  console.log(unspentTxOuts);
+  const balance =unspentTxOuts
+    .filter((uTxO) => uTxO.address === address )
+    
+  console.log("balance", balance);
+  let sum = balance[0].amount ;
+  for (let i=0;i<=balance.length-2;i++)
+  {
+     if(balance[i].txOutIndex===balance[i+1].txOutIndex)
+      sum+=balance[i+1].amount;
+      else if(parseInt(balance[i].txOutIndex)<parseInt(balance[i+1].txOutIndex))
+      {
+        sum=balance[i+1].amount;
+      }
+  }
+  
+  return sum;
 };
 const findUnspentTxOuts = (ownerAddress, unspentTxOuts) => {
     return _.filter(unspentTxOuts, (uTxO) => uTxO.address === ownerAddress);
@@ -56,6 +69,7 @@ const findTxOutsForAmount = (amount, myUnspentTxOuts) => {
   for (const myUnspentTxOut of myUnspentTxOuts) {
     includedUnspentTxOuts.push(myUnspentTxOut);
     currentAmount = currentAmount + myUnspentTxOut.amount;
+    
     if (currentAmount >= amount) {
       const leftOverAmount = currentAmount - amount;
       return { includedUnspentTxOuts, leftOverAmount };
@@ -88,37 +102,36 @@ const createTransaction = (
   receiverAddress,
   amount,
   privateKey,
-  unspentTxOuts, address
+  unspentTxOuts, senderAddress
 ) => {
-  const myAddress = address;
+  const myAddress = senderAddress;
+  
   const myUnspentTxOuts = unspentTxOuts.filter(
-    (uTxO) => uTxO.address === myAddress
+    (uTxO) => uTxO.address === myAddress 
   );
-
   const { includedUnspentTxOuts, leftOverAmount } = findTxOutsForAmount(
     amount,
     myUnspentTxOuts
   );
-
   const toUnsignedTxIn = (unspentTxOut) => {
     const txIn = new TxIn();
     txIn.txOutId = unspentTxOut.txOutId;
     txIn.txOutIndex = unspentTxOut.txOutIndex;
     return txIn;
   };
-
+  
   const unsignedTxIns = includedUnspentTxOuts.map(toUnsignedTxIn);
-
+  
   const tx = new Transaction();
   tx.txIns = unsignedTxIns;
   tx.txOuts = createTxOuts(receiverAddress, myAddress, amount, leftOverAmount);
   tx.id = getTransactionId(tx);
-
+  ;
   tx.txIns = tx.txIns.map((txIn, index) => {
+    
     txIn.signature = signTxIn(tx, index, privateKey, unspentTxOuts);
     return txIn;
   });
-
   return tx;
 };
 
